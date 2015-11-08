@@ -5,7 +5,7 @@ from Household import Household
 house_number = 5
 houses = list()
 for index, house in enumerate(range(house_number)):
-	houses.append(Household(index))
+	houses.append(Household(str(index)))
 
 assertions = list()
 # each list element is a dictionary with 1 or 2 keys
@@ -29,10 +29,9 @@ assertions.append({"person": "norwegian", "position": "next [color:blue]"})  # 1
 assertions.append({"drink": "water"})
 assertions.append({"pet": "zebra"})
 
-for house in houses:
-	house.describe()
 
-	assertions_c = list(assertions)
+
+assertions_c = list(assertions)
 compound_assertions = list()
 
 elements = dict()
@@ -46,18 +45,45 @@ for clue in assertions:
 				elements[key].append(value)
 	
 	possible_placements = 5
+	possible_house = None
 	if len(clue) == 2:
-		for house in houses:
-			key1 = list(clue.keys())[0]  # eg. "person"
-			key2 = list(clue.keys())[1]
-			if house.data[key1] == clue[key1]:  # if house["person"] = "english"
-				house.data[key2] = clue[key2]   # then house["color"] = "red"
-			elif house.data[key2] == clue[key2]:
-				house.data[key1] = clue[key1]
-			else:  # neither clue matches 
-			
-	# clues that lead to certain conclusions
-
+		if "position" not in clue.keys():
+			for index, house in enumerate(houses):
+				key1 = list(clue.keys())[0]  # eg. "person"
+				key2 = list(clue.keys())[1]  # eg. "color"
+				if house.data[key1] == clue[key1]:  # if house["person"] = "english"
+					house.data[key2] = clue[key2]   # then house["color"] = "red"
+					possible_house = index
+				elif house.data[key2] == clue[key2]:  # if house["color"] = "red"
+					house.data[key1] = clue[key1]     # then house["person"] = "english"
+					possible_house = index
+				else:  # neither clue matches 
+					possible_placements -= 1
+				print("possibilities for clue: " + str(clue) + " are: " + str(possible_placements))
+			else:
+				if possible_placements == 1:
+					if houses[possible_placements].data[key1] == clue[key1]:  # if house["person"] = "english"
+						houses[possible_placements].data[key2] = clue[key2]   # then house["color"] = "red"
+					elif houses[possible_placements].data[key2] == clue[key2]:  # if house["color"] = "red"
+						houses[possible_placements].data[key1] = clue[key1]     # then house["person"] = "english"
+		else:  # position in clue
+			position = clue["position"]
+			# get other key
+			keys = list(clue.keys())
+			keys.remove("position")
+			key2 = keys[0]
+			print("key2 is: " + key2 + ", position: " + position)
+			if "right" in position:  
+				print("placeholder: position with right")
+			elif "left" in position:
+				print("placeholder: position with left")
+			elif "next" in position:
+				print("placeholder: position with next")
+			elif position.isdigit():
+				print("placeholder: position with digit")
+			else:
+				print("Clue contains invalid position: " + position + ". Exiting...")
+				exit()
 				
 				
 #for e in elements:
@@ -69,7 +95,8 @@ for clue in assertions:
 
 
 
-
+for house in houses:
+	house.describe()
 
 
 
