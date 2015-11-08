@@ -30,6 +30,8 @@ def build_assertions():
     return clues
 
 def build_element_list(clues):
+    """ Extract individual elements from the given clue list.
+    Ie. all house colors, all drinks, all nationalities, etc. """
     elements = dict()
     for clue in clues:
         for key, value in clue.items():
@@ -42,17 +44,18 @@ def build_element_list(clues):
     return elements
 
 def main():
-    houseNumber = 5
+    """ Solve riddle. """
+    house_number = 5
     houses = list()
-    for index, house in enumerate(range(houseNumber)):
+    for index, house in enumerate(range(house_number)):
         houses.append(Household(str(index)))
 
     assertions = build_assertions()
 
     assertion_used = [False] * len(assertions)
-    print("assertion_used: " + str(assertion_used))
-    assertions_cp = list(assertions)
-    compound_assertions = list()
+    # print("assertion_used: " + str(assertion_used))
+    #assertions_cp = list(assertions)
+    #compound_assertions = list()
     pos_p = re.compile(".*\[(.*):(.*)\]")  # position pattern
     elements = build_element_list(assertions)
 
@@ -64,21 +67,27 @@ def main():
                 for index, house in enumerate(houses):
                     key1 = list(clue.keys())[0]  # eg. "person"
                     key2 = list(clue.keys())[1]  # eg. "color"
-                    if house.data[key1] == clue[key1]:  # if house["person"] = "english"
+                    if (house.data[key1] == clue[key1]  # if house["person"] = "english"
+                        and house.data[key1] is None):
                         house.data[key2] = clue[key2]   # then house["color"] = "red"
                         possible_house = index
-                    elif house.data[key2] == clue[key2]:  # if house["color"] = "red"
+                    elif (house.data[key2] == clue[key2]  # if house["color"] = "red"
+                        and house.data[key1] is None):
                         house.data[key1] = clue[key1]     # then house["person"] = "english"
                         possible_house = index
                     else:  # neither clue matches 
                         possible_placements -= 1
-                    print("possibilities for clue: " + str(clue) + " are: " + str(possible_placements))
-                else:
-                    if possible_placements == 1:
-                        if houses[possible_placements].data[key1] == clue[key1]:  # if house["person"] = "english"
-                            houses[possible_placements].data[key2] = clue[key2]   # then house["color"] = "red"
-                        elif houses[possible_placements].data[key2] == clue[key2]:  # if house["color"] = "red"
-                            houses[possible_placements].data[key1] = clue[key1]     # then house["person"] = "english"
+                    print("possibilities for " + str(clue) + " are " + str(possible_placements))
+
+                if possible_placements == 1:
+                    if (houses[possible_placements].data[key1] == clue[key1] and 
+                        houses[possible_placements].data[key2] is None):
+                         # if house["person"] = "english" then house["color"] = "red"
+                        houses[possible_placements].data[key2] = clue[key2]
+                    elif (houses[possible_placements].data[key2] == clue[key2] and  
+                        houses[possible_placements].data[key1] is None):
+                        # if house["color"] = "red" then house["person"] = "english"
+                        houses[possible_placements].data[key1] = clue[key1]
             else:  # position in clue
                 position = clue["position"]
                 # get other key
