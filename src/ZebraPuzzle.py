@@ -171,6 +171,8 @@ def main():
                             elif h.data[key2] == clue[key2]:  # if color = green
                                 comp2_index = i
 
+                        #side_match = f(houses, assertions, assertion_used, clue_i,
+                                       #comp_key, comp_val, comp_index, comp2_index, key2)
                         if "right" in position:  
                             print("placeholder: position with right")
                             
@@ -187,12 +189,18 @@ def main():
                                 if houses[comp2_index - 1].data[comp_key] is None:
                                     assertions.append({comp_key: comp_val, "position": str(comp2_index - 1)})
                                     assertion_used.append(False)
-                                    assertion_used[clue_i] = True                                    
+                                    assertion_used[clue_i] = True                       
 
 
                         elif "left" in position:
                             print("placeholder: position with left")
-                            if comp_index is not None and comp_index - 1 <= 0:
+                            if comp2_index is not None and comp2_index + 1 < house_number:
+                                # comp2_index points to the house where the {color:green} condition is fulfilled 
+                                if houses[comp2_index + 1].data[comp_key] is None:
+                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
+                                    assertion_used.append(False)
+                                    assertion_used[clue_i] = True   
+                            elif comp_index is not None and comp_index - 1 <= 0:
                                 # comp_index points to the house where the [color:ivory] condition is fulfilled 
                                 if houses[comp_index - 1].data[key2] is None:
                                     # if the house to the right of the house with [color:ivory] has no
@@ -200,12 +208,6 @@ def main():
                                     assertions.append({key2: clue[key2], "position": str(comp_index - 1)})
                                     assertion_used.append(False)
                                     assertion_used[clue_i] = True
-                            elif comp2_index is not None and comp2_index + 1 < house_number:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index + 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True   
 
                         elif "next" in position:
                             print("placeholder: position with next")
@@ -226,8 +228,14 @@ def main():
                                     assertions.append({comp_key: comp_val, "position": str(comp2_index - 1)})
                                     assertion_used.append(False)
                                     assertion_used[clue_i] = True
-                                       
+
                             # left
+                            elif comp2_index is not None and comp2_index + 1 < house_number:
+                                # comp2_index points to the house where the {color:green} condition is fulfilled 
+                                if houses[comp2_index + 1].data[comp_key] is None:
+                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
+                                    assertion_used.append(False)
+                                    assertion_used[clue_i] = True   
                             elif comp_index is not None and comp_index - 1 <= 0:
                                 # comp_index points to the house where the [color:ivory] condition is fulfilled 
                                 if houses[comp_index - 1].data[key2] is None:
@@ -235,15 +243,7 @@ def main():
                                     # color assigned, its color will be green
                                     assertions.append({key2: clue[key2], "position": str(comp_index - 1)})
                                     assertion_used.append(False)
-                                    assertion_used[clue_i] = True
-                            elif comp2_index is not None and comp2_index + 1 < house_number:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index + 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
-                                    assertion_used.append(False)
                                     assertion_used[clue_i] = True  
-
-
 
                         else:
                             print("Clue contains invalid position modifier: " + position + ". Exiting...")
