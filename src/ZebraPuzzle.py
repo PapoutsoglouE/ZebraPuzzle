@@ -98,6 +98,97 @@ def side_match(houses, assertions, assertion_used, clue_i,
     return (houses, assertions, assertion_used, progress)
 
 
+def deduce(houses, assertions, assertion_used):
+    pos_p = re.compile("(.*) \[(.*):(.*)\]")  # position pattern
+    progress_made = False
+    house_number = len(houses)
+    for clue_i, clue in enumerate(assertions):    
+        if not assertion_used[clue_i]:
+            key1, key2 = list(clue.keys())  # eg. "person", "color"
+            if "position" not in clue.keys():
+                possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
+                if possible_placements == 1:  # guaranteed fit, one way or another
+                    progress_made = True
+                    assertion_used[clue_i] = True
+                    if houses[possible_house].data[key1] == clue[key1]:
+                         # if house["person"] = "english" then house["color"] = "red"
+                        houses[possible_house].data[key2] = clue[key2]
+                    else:  # houses[possible_house].data[key2] == clue[key2]
+                        # if house["color"] = "red" then house["person"] = "english"
+                        houses[possible_house].data[key1] = clue[key1]
+                elif possible_placements == 0 and fits == 1:
+                    progress_made = True
+                    houses[fit_index].data[key1] = clue[key1]
+                    houses[fit_index].data[key2] = clue[key2]
+                elif fits == 0:
+                    print("Cannot possibly fit clue: " + str(clue) + ". Exiting.") 
+                    exit()
+                    # TODO: handle this possibility better for potential future loop-over 
+            else:  # position in clue
+                position = clue["position"] # key1 is "position"
+                if key2 == "position" : key2 = key1 # get other key
+                pos_data = re.match(pos_p, position)  # group(1) = "color", group(2) = "ivory 
+                if pos_data is None:  # no pattern match
+                    if position.isdigit() and int(position) < house_number:
+                        possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
+                        if possible_placements == 1:  # guaranteed fit, one way or another
+                            progress_made = True
+                            assertion_used[clue_i] = True
+                            if houses[possible_house].data["position"] == clue["position"]:
+                                 # if house["person"] = "english" then house["color"] = "red"
+                                houses[possible_house].data[key2] = clue[key2]
+                            else:  # houses[possible_house].data[key2] == clue[key2]
+                                # if house["color"] = "red" then house["person"] = "english"
+                                houses[possible_house].data["position"] = clue["position"]
+                        elif possible_placements == 0 and fits == 1:
+                            progress_made = True
+                            houses[fit_index].data[key1] = clue[key1]
+                            houses[fit_index].data[key2] = clue[key2]
+                        elif fits == 0:
+                            print("Cannot possibly fit clue: " + str(clue) + ". Exiting.")
+                            # print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
+                            # for house in houses:
+                            #     house.describe()    
+                            exit()
+                            # TODO: handle this possibility better for potential future loop-over
+                    else:
+                        print("Clue contains invalid position: " + position + ". Exiting...")
+                        exit()
+                        # TODO: handle possibility of clue appearing invalid pointing to error in logic
+                else:  # pattern matched
+                    pos_progress_made = False
+                    pos_modifier, comp_key, comp_val = pos_data.groups()  # comparison key: color, comparison value: ivory
+                    # clue[key2] = green, key2 = color
+                    # comp_key = color, comp_val = ivory
+                    comp_index, comp2_index = None, None  
+                    # index of house with color = ivory, color = green
+                    # example: {"color": "green", "position": "right [color:ivory]" 
+                    for i, h in enumerate(houses):
+                        if h.data[comp_key] == comp_val:  # if color = ivory
+                            comp_index = i
+                        elif h.data[key2] == clue[key2]:  # if color = green
+                            comp2_index = i
+                    if pos_modifier in ["right", "next"]:
+                        houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                                       comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
+                    if pos_modifier == "left"  or (pos_modifier == "next" and not pos_progress_made):
+                        houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                                       comp2_index, comp_index, key2, clue[key2], comp_key, comp_val) 
+                    elif not pos_modifier in ["right", "left", "next"]:
+                        print("Clue contains invalid position modifier: " + position + ". Exiting...")
+                        exit()
+                        
+                    progress_made = pos_progress_made or progress_made
+
+    return houses, assertions, assertion_used, progress_made
+
+
+
+def eliminate():
+    pass
+
+
+
 def main():
     """ Solve riddle. """
     house_number = 5
@@ -114,113 +205,9 @@ def main():
 
     for round in range(4):
         progress_made = False  # have any changes (progress) been made this round?
-        for clue_i, clue in enumerate(assertions):    
-            if len(clue) == 2 and not assertion_used[clue_i]:
-                key1, key2 = list(clue.keys())  # eg. "person", "color"
-                if "position" not in clue.keys():
-                    possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
-                    if possible_placements == 1:  # guaranteed fit, one way or another
-                        progress_made = True
-                        assertion_used[clue_i] = True
-                        if houses[possible_house].data[key1] == clue[key1]:
-                             # if house["person"] = "english" then house["color"] = "red"
-                            houses[possible_house].data[key2] = clue[key2]
-                        else:  # houses[possible_house].data[key2] == clue[key2]
-                            # if house["color"] = "red" then house["person"] = "english"
-                            houses[possible_house].data[key1] = clue[key1]
-                    elif possible_placements == 0 and fits == 1:
-                        progress_made = True
-                        houses[fit_index].data[key1] = clue[key1]
-                        houses[fit_index].data[key2] = clue[key2]
 
-                    elif fits == 0:
-                        print("Cannot possibly fit clue: " + str(clue) + ". Exiting.")
-                        # print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
-                        # for house in houses:
-                        #     house.describe()    
-                        exit()
-                        # TODO: handle this possibility better for potential future loop-over
+        houses, assertions, assertions_used, progress_made = deduce(houses, assertions, assertion_used)
 
-                else:  # position in clue
-                    position = clue["position"] # key1 is "position"
-                    if key2 == "position" : key2 = key1 # get other key
-                    pos_data = re.match(pos_p, position)  # group(1) = "color", group(2) = "ivory"
-
-                    if pos_data is None:  # no pattern match
-                        if position.isdigit() and int(position) < house_number:
-                            possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
-                            print("poss_pl: " + str(possible_placements) + ", poss_h: " + str(possible_house))
-                            print("for clue: " + str(clue))
-                            if possible_placements == 1:  # guaranteed fit, one way or another
-                                progress_made = True
-                                assertion_used[clue_i] = True
-                                if houses[possible_house].data["position"] == clue["position"]:
-                                     # if house["person"] = "english" then house["color"] = "red"
-                                    houses[possible_house].data[key2] = clue[key2]
-                                else:  # houses[possible_house].data[key2] == clue[key2]
-                                    # if house["color"] = "red" then house["person"] = "english"
-                                    houses[possible_house].data["position"] = clue["position"]
-
-                            elif possible_placements == 0 and fits == 1:
-                                progress_made = True
-                                houses[fit_index].data[key1] = clue[key1]
-                                houses[fit_index].data[key2] = clue[key2]
-                            elif fits == 0:
-                                print("Cannot possibly fit clue: " + str(clue) + ". Exiting.")
-                                # print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
-                                # for house in houses:
-                                #     house.describe()    
-                                exit()
-                                # TODO: handle this possibility better for potential future loop-over
-
-                        else:
-                            print("Clue contains invalid position: " + position + ". Exiting...")
-                            exit()
-                            # TODO: handle possibility of clue appearing invalid pointing to error in logic
-
-                    else:  # pattern matched
-                        pos_progress_made = False
-                        pos_modifier, comp_key, comp_val = pos_data.groups()  # comparison key: color, comparison value: ivory
-                        # clue[key2] = green, key2 = color
-                        # comp_key = color, comp_val = ivory
-                        comp_index = None  # index of house with color = ivory
-                        comp2_index = None # index of house with color = green
-                        # example: {"color": "green", "position": "right [color:ivory]"}
-
-                        for i, h in enumerate(houses):
-                            if h.data[comp_key] == comp_val:  # if color = ivory
-                                comp_index = i
-                            elif h.data[key2] == clue[key2]:  # if color = green
-                                comp2_index = i
-
-                        if pos_modifier in ["right", "next"]:
-                            print("placeholder: position with right")
-                            houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                                           comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
-
-                        if pos_modifier == "left"  or (pos_modifier == "next" and not progress_made):
-                            print("placeholder: position with left")
-                            houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                                           comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
-
-                        if not progress_made and pos_progress_made: progress_made = True
-                        #elif "next" in position:
-                        #    # clue 11: {"smoke": "kools", "position": "next [pet:horse]"}
-
-                        #    # right side
-                        #    previous_clues = len(assertions)
-                        #    houses, assertions, assertion_used, progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                        #        comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
-
-                        #    # left side
-                        #    if not progress_made:
-                        #    #if not (len(assertions) > previous_clues):
-                        #        houses, assertions, assertion_used, progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                        #                comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
-
-                        elif not pos_modifier in ["right", "left", "next"]:
-                            print("Clue contains invalid position modifier: " + position + ". Exiting...")
-                            exit()
         
         if not progress_made:
             print("\n\n\t\tNo progress made in round #" + str(round) + ". Breaking loop.")
