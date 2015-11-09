@@ -76,6 +76,28 @@ def check_houses(houses, clue):
     return possible_placements, possible_house, possible_fits, fit_index
 
 
+def side_match(houses, assertions, assertion_used, clue_i,
+               indexA, indexB, key1, val1, key2, val2):
+    progress = False
+    if indexA is not None and (indexA + 1 < len(houses)):
+        # comp_index points to the house where the [color:ivory] condition is fulfilled 
+        if houses[indexA + 1].data[key2] is None:
+            # if the house to the right of the house with [color:ivory] has no
+            # color assigned, its color will be green
+            assertions.append({key2: val2, "position": str(indexA + 1)})
+            assertion_used.append(False)
+            assertion_used[clue_i] = True
+            progress = True
+    elif indexB is not None and indexB - 1 >= 0:
+        # comp2_index points to the house where the {color:green} condition is fulfilled 
+        if houses[indexB - 1].data[key1] is None:
+            assertions.append({key1: val1, "position": str(indexB - 1)})
+            assertion_used.append(False)
+            assertion_used[clue_i] = True
+            progress = True
+    return (houses, assertions, assertion_used, progress)
+
+
 def main():
     """ Solve riddle. """
     house_number = 5
@@ -87,10 +109,10 @@ def main():
     assertion_used = list(map(lambda x: True if len(x)<2 else False, assertions))
     #assertions_cp = list(assertions)
     #compound_assertions = list()
-    pos_p = re.compile(".*\[(.*):(.*)\]")  # position pattern
+    pos_p = re.compile("(.*) \[(.*):(.*)\]")  # position pattern
     elements = build_element_list(assertions)
 
-    for round in range(2):
+    for round in range(4):
         progress_made = False  # have any changes (progress) been made this round?
         for clue_i, clue in enumerate(assertions):    
             if len(clue) == 2 and not assertion_used[clue_i]:
@@ -121,8 +143,7 @@ def main():
 
                 else:  # position in clue
                     position = clue["position"] # key1 is "position"
-                    key2 = key2 if key1 == "position" else key2 # get other key
-                    print("\n\nkey2 is: " + key2 + ", position: " + position)
+                    if key2 == "position" : key2 = key1 # get other key
                     pos_data = re.match(pos_p, position)  # group(1) = "color", group(2) = "ivory"
 
                     if pos_data is None:  # no pattern match
@@ -158,94 +179,46 @@ def main():
                             # TODO: handle possibility of clue appearing invalid pointing to error in logic
 
                     else:  # pattern matched
-                        comp_key, comp_val = pos_data.groups()  # comparison key: color, comparison value: ivory
+                        pos_progress_made = False
+                        pos_modifier, comp_key, comp_val = pos_data.groups()  # comparison key: color, comparison value: ivory
                         # clue[key2] = green, key2 = color
                         # comp_key = color, comp_val = ivory
-                        # TODO: toggle progress_made = True
                         comp_index = None  # index of house with color = ivory
                         comp2_index = None # index of house with color = green
                         # example: {"color": "green", "position": "right [color:ivory]"}
+
                         for i, h in enumerate(houses):
                             if h.data[comp_key] == comp_val:  # if color = ivory
                                 comp_index = i
                             elif h.data[key2] == clue[key2]:  # if color = green
                                 comp2_index = i
 
-                        #side_match = f(houses, assertions, assertion_used, clue_i,
-                                       #comp_key, comp_val, comp_index, comp2_index, key2)
-                        if "right" in position:  
+                        if pos_modifier in ["right", "next"]:
                             print("placeholder: position with right")
-                            
-                            if comp_index is not None and comp_index + 1 < house_number :
-                                # comp_index points to the house where the [color:ivory] condition is fulfilled 
-                                if houses[comp_index + 1].data[key2] is None:
-                                    # if the house to the right of the house with [color:ivory] has no
-                                    # color assigned, its color will be green
-                                    assertions.append({key2: clue[key2], "position": str(comp_index + 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True
-                            elif comp2_index is not None and comp2_index - 1 >= 0:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index - 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index - 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True                       
+                            houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                                           comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
 
-
-                        elif "left" in position:
+                        if pos_modifier == "left"  or (pos_modifier == "next" and not progress_made):
                             print("placeholder: position with left")
-                            if comp2_index is not None and comp2_index + 1 < house_number:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index + 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True   
-                            elif comp_index is not None and comp_index - 1 <= 0:
-                                # comp_index points to the house where the [color:ivory] condition is fulfilled 
-                                if houses[comp_index - 1].data[key2] is None:
-                                    # if the house to the right of the house with [color:ivory] has no
-                                    # color assigned, its color will be green
-                                    assertions.append({key2: clue[key2], "position": str(comp_index - 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True
+                            houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                                           comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
 
-                        elif "next" in position:
-                            print("placeholder: position with next")
-                            # clue 11: {"smoke": "kools", "position": "next [pet:horse]"}
+                        if not progress_made and pos_progress_made: progress_made = True
+                        #elif "next" in position:
+                        #    # clue 11: {"smoke": "kools", "position": "next [pet:horse]"}
 
-                            # right
-                            if comp_index is not None and comp_index + 1 < house_number :
-                                # comp_index points to the house where the [color:ivory] condition is fulfilled 
-                                if houses[comp_index + 1].data[key2] is None:
-                                    # if the house to the right of the house with [color:ivory] has no
-                                    # color assigned, its color will be green
-                                    assertions.append({key2: clue[key2], "position": str(comp_index + 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True
-                            elif comp2_index is not None and comp2_index - 1 >= 0:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index - 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index - 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True
+                        #    # right side
+                        #    previous_clues = len(assertions)
+                        #    houses, assertions, assertion_used, progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                        #        comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
 
-                            # left
-                            elif comp2_index is not None and comp2_index + 1 < house_number:
-                                # comp2_index points to the house where the {color:green} condition is fulfilled 
-                                if houses[comp2_index + 1].data[comp_key] is None:
-                                    assertions.append({comp_key: comp_val, "position": str(comp2_index + 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True   
-                            elif comp_index is not None and comp_index - 1 <= 0:
-                                # comp_index points to the house where the [color:ivory] condition is fulfilled 
-                                if houses[comp_index - 1].data[key2] is None:
-                                    # if the house to the right of the house with [color:ivory] has no
-                                    # color assigned, its color will be green
-                                    assertions.append({key2: clue[key2], "position": str(comp_index - 1)})
-                                    assertion_used.append(False)
-                                    assertion_used[clue_i] = True  
+                        #    # left side
+                        #    if not progress_made:
+                        #    #if not (len(assertions) > previous_clues):
+                        #        houses, assertions, assertion_used, progress_made = side_match(houses, assertions, assertion_used, clue_i,
+                        #                comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
 
-                        else:
+                        elif not pos_modifier in ["right", "left", "next"]:
                             print("Clue contains invalid position modifier: " + position + ". Exiting...")
                             exit()
         
