@@ -163,6 +163,11 @@ def deduce(houses, assertions, assertion_used):
                     comp_index, comp2_index = None, None  
                     # index of house with color = ivory, color = green
                     # example: {"color": "green", "position": "right [color:ivory]" 
+                    
+                    if not pos_modifier in ["right", "left", "next"]:
+                        print("Clue contains invalid position modifier: " + position + ". Exiting...")
+                        exit()
+
                     for i, h in enumerate(houses):
                         if h.data[comp_key] == comp_val:  # if color = ivory
                             comp_index = i
@@ -174,10 +179,7 @@ def deduce(houses, assertions, assertion_used):
                     if pos_modifier == "left"  or (pos_modifier == "next" and not pos_progress_made):
                         houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
                                        comp2_index, comp_index, key2, clue[key2], comp_key, comp_val) 
-                    elif not pos_modifier in ["right", "left", "next"]:
-                        print("Clue contains invalid position modifier: " + position + ". Exiting...")
-                        exit()
-                        
+   
                     progress_made = pos_progress_made or progress_made
 
     return houses, assertions, assertion_used, progress_made
@@ -205,10 +207,8 @@ def main():
 
     for round in range(4):
         progress_made = False  # have any changes (progress) been made this round?
-
         houses, assertions, assertions_used, progress_made = deduce(houses, assertions, assertion_used)
 
-        
         if not progress_made:
             print("\n\n\t\tNo progress made in round #" + str(round) + ". Breaking loop.")
             print("\t\tAssertions used: " + str(assertion_used.count(True)) + "/" + str(len(assertion_used))) 
