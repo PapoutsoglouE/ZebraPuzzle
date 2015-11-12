@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from Household import Household
+from ProblemData import ProblemData
 import re
 
 
@@ -32,15 +33,19 @@ def build_assertions():
 
 def build_element_list(clues):
     """ Extract individual elements from the given clue list.
-    Ie. all house colors, all drinks, all nationalities, etc. """
+    Ie. all house colors, all drinks, all nationalities, etc. 
+    The produced structure follows the format: dict(dict(list)))
+    eg. elements["pet"]["dog"] = [1,2,4], where [1,2,4] are the
+    possible placements for the ["pet"]["dog"]. """
     elements = dict()
     for clue in clues:
         for key, value in clue.items():
             if key not in elements:
-                elements[key] = [value]
+                elements[key] = dict()
+                elements[key][value] = list(range(5))
             else:
                 if value not in elements[key]:
-                    elements[key].append(value)
+                    elements[key][value] =  list(range(5))
 
     return elements
 
@@ -57,17 +62,17 @@ def check_houses(houses, clue):
 
     for index, house in enumerate(houses):
         key1, key2 = list(clue.keys())  # eg. "person", "color"
-        if (house.data[key1] == clue[key1] and house.data[key2] is None):
+        if house.data[key1] == clue[key1] and house.data[key2] is None:
             # if house["person"] = "english" then house["color"] = "red"
             house.data[key2] = clue[key2] 
             possible_house = index
             possible_placements += 1 
-        elif (house.data[key2] == clue[key2] and house.data[key1] is None):
+        elif house.data[key2] == clue[key2] and house.data[key1] is None:
             # if house["color"] = "red" then house["person"] = "english"
             house.data[key1] = clue[key1]
             possible_house = index
             possible_placements += 1
-        elif (house.data[key1] is None and house.data[key2] is None):
+        elif house.data[key1] is None and house.data[key2] is None:
             fit_index = index
             possible_fits += 1 
 
@@ -76,74 +81,73 @@ def check_houses(houses, clue):
     return possible_placements, possible_house, possible_fits, fit_index
 
 
-def side_match(houses, assertions, assertion_used, clue_i,
-               indexA, indexB, key1, val1, key2, val2):
+def side_match(rdl, clue_i, indexA, indexB, key1, val1, key2, val2):
     progress = False
-    if indexA is not None and (indexA + 1 < len(houses)):
+    if indexA is not None and (indexA + 1 < rdl.house_number):
         # comp_index points to the house where the [color:ivory] condition is fulfilled 
-        if houses[indexA + 1].data[key2] is None:
+        if rdl.houses[indexA + 1].data[key2] is None:
             # if the house to the right of the house with [color:ivory] has no
             # color assigned, its color will be green
-            assertions.append({key2: val2, "position": str(indexA + 1)})
-            assertion_used.append(False)
-            assertion_used[clue_i] = True
+            rdl.assertions.append({key2: val2, "position": str(indexA + 1)})
+            rdl.assertions_used.append(False)
+            rdl.assertions_used[clue_i] = True
             progress = True
     elif indexB is not None and indexB - 1 >= 0:
         # comp2_index points to the house where the {color:green} condition is fulfilled 
-        if houses[indexB - 1].data[key1] is None:
-            assertions.append({key1: val1, "position": str(indexB - 1)})
-            assertion_used.append(False)
-            assertion_used[clue_i] = True
+        if rdl.houses[indexB - 1].data[key1] is None:
+            rdl.assertions.append({key1: val1, "position": str(indexB - 1)})
+            rdl.assertions_used.append(False)
+            rdl.assertions_used[clue_i] = True
             progress = True
-    return (houses, assertions, assertion_used, progress)
+    return (rdl, progress)
 
 
-def deduce(houses, assertions, assertion_used):
+def deduce(riddle):
     pos_p = re.compile("(.*) \[(.*):(.*)\]")  # position pattern
     progress_made = False
-    house_number = len(houses)
-    for clue_i, clue in enumerate(assertions):    
-        if not assertion_used[clue_i]:
+    house_number = riddle.house_number
+    for clue_i, clue in enumerate(riddle.assertions):    
+        if not riddle.assertions_used[clue_i]:
             key1, key2 = list(clue.keys())  # eg. "person", "color"
             if "position" not in clue.keys():
-                possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
+                possible_placements, possible_house, fits, fit_index = check_houses(riddle.houses, clue)
                 if possible_placements == 1:  # guaranteed fit, one way or another
                     progress_made = True
-                    assertion_used[clue_i] = True
-                    if houses[possible_house].data[key1] == clue[key1]:
+                    riddle.assertions_used[clue_i] = True
+                    if riddle.houses[possible_house].data[key1] == clue[key1]:
                          # if house["person"] = "english" then house["color"] = "red"
-                        houses[possible_house].data[key2] = clue[key2]
+                        riddle.houses[possible_house].data[key2] = clue[key2]
                     else:  # houses[possible_house].data[key2] == clue[key2]
                         # if house["color"] = "red" then house["person"] = "english"
-                        houses[possible_house].data[key1] = clue[key1]
+                        riddle.houses[possible_house].data[key1] = clue[key1]
                 elif possible_placements == 0 and fits == 1:
                     progress_made = True
-                    houses[fit_index].data[key1] = clue[key1]
-                    houses[fit_index].data[key2] = clue[key2]
+                    riddle.houses[fit_index].data[key1] = clue[key1]
+                    riddle.houses[fit_index].data[key2] = clue[key2]
                 elif fits == 0:
                     print("Cannot possibly fit clue: " + str(clue) + ". Exiting.") 
                     exit()
                     # TODO: handle this possibility better for potential future loop-over 
             else:  # position in clue
                 position = clue["position"] # key1 is "position"
-                if key2 == "position" : key2 = key1 # get other key
+                if key2 == "position": key2 = key1 # get other key
                 pos_data = re.match(pos_p, position)  # group(1) = "color", group(2) = "ivory 
                 if pos_data is None:  # no pattern match
-                    if position.isdigit() and int(position) < house_number:
-                        possible_placements, possible_house, fits, fit_index = check_houses(houses, clue)
+                    if position.isdigit() and int(position) < riddle.house_number:
+                        possible_placements, possible_house, fits, fit_index = check_houses(riddle.houses, clue)
                         if possible_placements == 1:  # guaranteed fit, one way or another
                             progress_made = True
-                            assertion_used[clue_i] = True
-                            if houses[possible_house].data["position"] == clue["position"]:
+                            riddle.assertions_used[clue_i] = True
+                            if riddle.houses[possible_house].data["position"] == clue["position"]:
                                  # if house["person"] = "english" then house["color"] = "red"
-                                houses[possible_house].data[key2] = clue[key2]
+                                riddle.houses[possible_house].data[key2] = clue[key2]
                             else:  # houses[possible_house].data[key2] == clue[key2]
                                 # if house["color"] = "red" then house["person"] = "english"
-                                houses[possible_house].data["position"] = clue["position"]
+                                riddle.houses[possible_house].data["position"] = clue["position"]
                         elif possible_placements == 0 and fits == 1:
                             progress_made = True
-                            houses[fit_index].data[key1] = clue[key1]
-                            houses[fit_index].data[key2] = clue[key2]
+                            riddle.houses[fit_index].data[key1] = clue[key1]
+                            riddle.houses[fit_index].data[key2] = clue[key2]
                         elif fits == 0:
                             print("Cannot possibly fit clue: " + str(clue) + ". Exiting.")
                             # print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
@@ -168,22 +172,22 @@ def deduce(houses, assertions, assertion_used):
                         print("Clue contains invalid position modifier: " + position + ". Exiting...")
                         exit()
 
-                    for i, h in enumerate(houses):
+                    for i, h in enumerate(riddle.houses):
                         if h.data[comp_key] == comp_val:  # if color = ivory
                             comp_index = i
                         elif h.data[key2] == clue[key2]:  # if color = green
                             comp2_index = i
+
                     if pos_modifier in ["right", "next"]:
-                        houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                                       comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
+                        riddle, pos_progress_made = side_match(riddle, clue_i, comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
                     if pos_modifier == "left"  or (pos_modifier == "next" and not pos_progress_made):
-                        houses, assertions, assertion_used, pos_progress_made = side_match(houses, assertions, assertion_used, clue_i,
-                                       comp2_index, comp_index, key2, clue[key2], comp_key, comp_val) 
-   
+                        riddle, pos_progress_made = side_match(riddle, clue_i, comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
+
                     progress_made = pos_progress_made or progress_made
 
-    return houses, assertions, assertion_used, progress_made
 
+    #return houses, assertions, assertion_used, progress_made
+    return riddle, progress_made
 
 
 def eliminate():
@@ -194,32 +198,19 @@ def eliminate():
 def main():
     """ Solve riddle. """
     house_number = 5
-    houses = list()
-    for index, house in enumerate(range(house_number)):
-        houses.append(Household(index))
+    riddle = ProblemData(house_number, build_assertions())
 
-    assertions = build_assertions()
-    assertion_used = list(map(lambda x: True if len(x)<2 else False, assertions))
-    #assertions_cp = list(assertions)
-    #compound_assertions = list()
-    pos_p = re.compile("(.*) \[(.*):(.*)\]")  # position pattern
-    elements = build_element_list(assertions)
-
-    for round in range(4):
+    for rounds in range(4):
         progress_made = False  # have any changes (progress) been made this round?
-        houses, assertions, assertions_used, progress_made = deduce(houses, assertions, assertion_used)
-
+        riddle, progress_made = deduce(riddle)
         if not progress_made:
-            print("\n\n\t\tNo progress made in round #" + str(round) + ". Breaking loop.")
-            print("\t\tAssertions used: " + str(assertion_used.count(True)) + "/" + str(len(assertion_used))) 
+            print("\t\tNo progress made in round #" + str(rounds + 1) + ". Breaking loop.")
+            print("\t\tAssertions used: " + str(riddle.assertions_used.count(True)) + "/" 
+                  + str(len(riddle.assertions_used))) 
             break
-                    
-                    
-    print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
-    for house in houses:
-        house.describe()
-    
 
+    riddle.house_state()
+    riddle.element_state()
 
 
 if __name__ == '__main__':

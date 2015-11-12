@@ -28,7 +28,6 @@ class Household():
             return False
         else:
             return True
-
             
         
     @staticmethod
@@ -38,4 +37,3 @@ class Household():
         else:
             return string_to_verify
             
-        
