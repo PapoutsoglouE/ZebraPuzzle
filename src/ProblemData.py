@@ -30,6 +30,7 @@ class ProblemData():
 
 
     def house_state(self):
+        """ Print all houses with their current state. """
         print("House ##,\tcolor,\tresident,\tpet,\tdrink,\tsmoke")
         for house in self.houses:
             house.describe()        
@@ -37,8 +38,10 @@ class ProblemData():
 
 
     def element_state(self):
+        """ Print all elements, and the possible positions for each. """
         for attribute in self.elements:
-            print(attribute + ":")
-            for a in self.elements[attribute]:
-                print("\t" + a + "@" + str(self.elements[attribute][a]))
-            print()         
+            if not attribute == "position":
+                print(attribute + ":")
+                for a in self.elements[attribute]:
+                    print("\t" + a + "@" + str(self.elements[attribute][a]))
+                print()         

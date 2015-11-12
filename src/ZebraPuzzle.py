@@ -31,25 +31,6 @@ def build_assertions():
     return clues
 
 
-def build_element_list(clues):
-    """ Extract individual elements from the given clue list.
-    Ie. all house colors, all drinks, all nationalities, etc. 
-    The produced structure follows the format: dict(dict(list)))
-    eg. elements["pet"]["dog"] = [1,2,4], where [1,2,4] are the
-    possible placements for the ["pet"]["dog"]. """
-    elements = dict()
-    for clue in clues:
-        for key, value in clue.items():
-            if key not in elements:
-                elements[key] = dict()
-                elements[key][value] = list(range(5))
-            else:
-                if value not in elements[key]:
-                    elements[key][value] =  list(range(5))
-
-    return elements
-
-
 def check_houses(houses, clue):
     """ Check how many houses clue1 <-> clue2 could describe.
     Return number of houses, as well as the index of the last house matched. """
@@ -81,21 +62,22 @@ def check_houses(houses, clue):
     return possible_placements, possible_house, possible_fits, fit_index
 
 
-def side_match(rdl, clue_i, indexA, indexB, key1, val1, key2, val2):
+def side_match(rdl, clue_i, idx, kv_pairs):
+    key1, val1, key2, val2 = kv_pairs
     progress = False
-    if indexA is not None and (indexA + 1 < rdl.house_number):
+    if idx[0] is not None and (idx[0] + 1 < rdl.house_number):
         # comp_index points to the house where the [color:ivory] condition is fulfilled 
-        if rdl.houses[indexA + 1].data[key2] is None:
+        if rdl.houses[idx[0] + 1].data[key2] is None:
             # if the house to the right of the house with [color:ivory] has no
             # color assigned, its color will be green
-            rdl.assertions.append({key2: val2, "position": str(indexA + 1)})
+            rdl.assertions.append({key2: val2, "position": str(idx[0] + 1)})
             rdl.assertions_used.append(False)
             rdl.assertions_used[clue_i] = True
             progress = True
-    elif indexB is not None and indexB - 1 >= 0:
+    elif idx[1] is not None and idx[1] - 1 >= 0:
         # comp2_index points to the house where the {color:green} condition is fulfilled 
-        if rdl.houses[indexB - 1].data[key1] is None:
-            rdl.assertions.append({key1: val1, "position": str(indexB - 1)})
+        if rdl.houses[idx[1] - 1].data[key1] is None:
+            rdl.assertions.append({key1: val1, "position": str(idx[1] - 1)})
             rdl.assertions_used.append(False)
             rdl.assertions_used[clue_i] = True
             progress = True
@@ -103,9 +85,8 @@ def side_match(rdl, clue_i, indexA, indexB, key1, val1, key2, val2):
 
 
 def deduce(riddle):
-    pos_p = re.compile("(.*) \[(.*):(.*)\]")  # position pattern
+    pos_p = re.compile(r"(.*) \[(.*):(.*)\]")  # position pattern
     progress_made = False
-    house_number = riddle.house_number
     for clue_i, clue in enumerate(riddle.assertions):    
         if not riddle.assertions_used[clue_i]:
             key1, key2 = list(clue.keys())  # eg. "person", "color"
@@ -179,9 +160,11 @@ def deduce(riddle):
                             comp2_index = i
 
                     if pos_modifier in ["right", "next"]:
-                        riddle, pos_progress_made = side_match(riddle, clue_i, comp_index, comp2_index, comp_key, comp_val, key2, clue[key2])
+                        riddle, pos_progress_made = side_match(riddle, clue_i, [comp_index, comp2_index], 
+                                                               [comp_key, comp_val, key2, clue[key2]])
                     if pos_modifier == "left"  or (pos_modifier == "next" and not pos_progress_made):
-                        riddle, pos_progress_made = side_match(riddle, clue_i, comp2_index, comp_index, key2, clue[key2], comp_key, comp_val)
+                        riddle, pos_progress_made = side_match(riddle, clue_i, [comp2_index, comp_index], 
+                                                               [key2, clue[key2], comp_key, comp_val])
 
                     progress_made = pos_progress_made or progress_made
 
@@ -192,7 +175,6 @@ def deduce(riddle):
 
 def eliminate():
     pass
-
 
 
 def main():
