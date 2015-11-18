@@ -2,6 +2,8 @@
 from Household import Household
 
 class ProblemData():
+    """ A class aggregating the data pertaining to a particular Zebra puzzle.
+    This includes a list with houses, the clues supplied, as well as various secondary structures. """
     def __init__(self, house_number, assertions):
         self.house_number = house_number
         self.assertions = assertions
@@ -24,10 +26,46 @@ class ProblemData():
                     elements[key][value] = list(range(5))
                 else:
                     if value not in elements[key]:
-                        elements[key][value] =  list(range(5))
+                        elements[key][value] = list(range(5))
 
         return elements
 
+    def clean_elements(self):
+        """ Check if a certain element now has a definite position, but is still
+        listed as a possibility elsewhere. If so, remove that listing. 
+        Return True if any changes are made, False otherwise. """
+        progress = False
+        for attr in self.elements:
+            for e in self.elements[attr]:
+                if len(self.elements[attr][e]) == 1:
+                    certain = self.elements[attr][e][0]
+                    for each in self.elements[attr]:
+                        if certain in self.elements[attr][each]:
+                            self.elements[attr][each].remove(certain)
+                            progress = True     
+                    self.elements[attr][e].append(certain)
+                    self.houses[certain].data[attr] = e
+
+            counting_list = [item for sublist in self.elements[attr].values() for item in sublist]
+            #if attr == "color" : print(counting_list)
+            for i in range(self.house_number):
+                count = counting_list.count(i)
+                if count == 1:
+                    #print("count for sublist for " + attr + "=" + str(i) + " is: " + str(count))
+                    # meaning there is only one possible position for this element
+                    # check if this is news:
+                    for single_element in self.elements[attr]:
+                        if i in self.elements[attr][single_element]:
+                            # got the element
+                            if not self.houses[i].data[attr] == single_element:
+                                self.houses[i].data[attr] = single_element
+                                progress = True
+                                self.elements[attr][single_element] = [i]
+                                print("elimination got: " + single_element)
+                        
+
+
+        return progress
 
     def house_state(self):
         """ Print all houses with their current state. """
@@ -42,6 +80,6 @@ class ProblemData():
         for attribute in self.elements:
             if not attribute == "position":
                 print(attribute + ":")
-                for a in self.elements[attribute]:
-                    print("\t" + a + "@" + str(self.elements[attribute][a]))
-                print()         
+                for atb in self.elements[attribute]:
+                    print("\t" + atb + "@" + str(self.elements[attribute][atb]))
+                print("")         

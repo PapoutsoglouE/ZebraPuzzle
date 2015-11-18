@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from Household import Household
+#from Household import Household
 from ProblemData import ProblemData
 import re
 
@@ -26,12 +26,13 @@ def build_assertions():
     clues.append({"smoke": "lucky strike", "drink": "orange juice"})        # 12 
     clues.append({"person": "japanese", "smoke": "parliaments"})            # 13
     clues.append({"person": "norwegian", "position": "next [color:blue]"})  # 14
+    clues.append({"color": "blue"})
     clues.append({"drink": "water"})
     clues.append({"pet": "zebra"})
     return clues
 
 
-def check_houses(houses, clue):
+def check_houses(riddle, clue):
     """ Check how many houses clue1 <-> clue2 could describe.
     Return number of houses, as well as the index of the last house matched. """
     
@@ -41,7 +42,7 @@ def check_houses(houses, clue):
     fit_index = None
     # print("Checking houses for clue: " + str(clue))
 
-    for index, house in enumerate(houses):
+    for index, house in enumerate(riddle.houses):
         key1, key2 = list(clue.keys())  # eg. "person", "color"
         if house.data[key1] == clue[key1] and house.data[key2] is None:
             # if house["person"] = "english" then house["color"] = "red"
@@ -55,11 +56,20 @@ def check_houses(houses, clue):
             possible_placements += 1
         elif house.data[key1] is None and house.data[key2] is None:
             fit_index = index
-            possible_fits += 1 
+            possible_fits += 1
+        else:  # no way this house is a possible match
+            # remove this house from the list of possible houses for this element
+            if key1 != "position":
+                if index in riddle.elements[key1][clue[key1]]:
+                    riddle.elements[key1][clue[key1]].remove(index)
+                    #print("removed index " + str(index) + " from " + key1 + ":" + str(clue[key1]))
+            if key2 != "position":
+                if index in riddle.elements[key2][clue[key2]]:
+                    riddle.elements[key2][clue[key2]].remove(index)
+                    #print("removed index " + str(index) + " from " + key2 + ":" + str(clue[key2]))
+                
 
-    # print("possibilities for " + str(clue) + " are " + str(possible_placements)
-    #       + " and fits: " + str(possible_fits))
-    return possible_placements, possible_house, possible_fits, fit_index
+    return possible_placements, possible_house, possible_fits, fit_index, riddle
 
 
 def side_match(rdl, clue_i, idx, kv_pairs):
@@ -91,7 +101,7 @@ def deduce(riddle):
         if not riddle.assertions_used[clue_i]:
             key1, key2 = list(clue.keys())  # eg. "person", "color"
             if "position" not in clue.keys():
-                possible_placements, possible_house, fits, fit_index = check_houses(riddle.houses, clue)
+                possible_placements, possible_house, fits, fit_index, riddle = check_houses(riddle, clue)
                 if possible_placements == 1:  # guaranteed fit, one way or another
                     progress_made = True
                     riddle.assertions_used[clue_i] = True
@@ -115,7 +125,7 @@ def deduce(riddle):
                 pos_data = re.match(pos_p, position)  # group(1) = "color", group(2) = "ivory 
                 if pos_data is None:  # no pattern match
                     if position.isdigit() and int(position) < riddle.house_number:
-                        possible_placements, possible_house, fits, fit_index = check_houses(riddle.houses, clue)
+                        possible_placements, possible_house, fits, fit_index, riddle = check_houses(riddle, clue)
                         if possible_placements == 1:  # guaranteed fit, one way or another
                             progress_made = True
                             riddle.assertions_used[clue_i] = True
@@ -156,20 +166,43 @@ def deduce(riddle):
                     for i, h in enumerate(riddle.houses):
                         if h.data[comp_key] == comp_val:  # if color = ivory
                             comp_index = i
-                        elif h.data[key2] == clue[key2]:  # if color = green
+                        if h.data[key2] == clue[key2]:  # if color = green
                             comp2_index = i
 
                     if pos_modifier in ["right", "next"]:
+                        if pos_modifier == "right":
+                            if 0 in riddle.elements[key2][clue[key2]]:
+                                print("Stating that the " + clue[key2] + " " + key2 + " can't be at 0.")
+                                riddle.elements[key2][clue[key2]].remove(0)
+                            for i, h in enumerate(riddle.houses): 
+                                # if the house on the right is not green, the house on its left is not ivory.
+                                if i == 0: continue
+                                if h.data[key2] != clue[key2] and h.data[key2] is not None:
+                                    if (i - 1) in riddle.elements[comp_key][comp_val]:
+                                        print("Stating that the " + comp_key + " " + comp_val + " can't be at " + str(i-1))
+                                        riddle.elements[comp_key][comp_val].remove(i-1)
+
+                                # if the house on the left is not ivory, the house on the right is not green
+                                if i == riddle.house_number - 1: continue
+                                if h.data[comp_key] != comp_val and h.data[comp_key] is not None:
+                                    if (i + 1) in riddle.elements[key2][clue[key2]]:
+                                        print("Stating that the " + key2 + " " + clue[key2] + " can't be at " + str(i+1))
+                                        riddle.elements[key2][clue[key2]].remove(i-1)
+
                         riddle, pos_progress_made = side_match(riddle, clue_i, [comp_index, comp2_index], 
                                                                [comp_key, comp_val, key2, clue[key2]])
-                    if pos_modifier == "left"  or (pos_modifier == "next" and not pos_progress_made):
+                    if pos_modifier == "left" or (pos_modifier == "next" and not pos_progress_made):
+                        if pos_modifier == "left":
+                            if (riddle.house_number - 1) in riddle.elements[key2][clue[key2]]:
+                                print("Stating that the " + clue[key2] + " " + key2 + " can't be at 5.")
+                                riddle.elements[key2][clue[key2]].remove(riddle.house_number - 1)
                         riddle, pos_progress_made = side_match(riddle, clue_i, [comp2_index, comp_index], 
                                                                [key2, clue[key2], comp_key, comp_val])
 
-                    progress_made = pos_progress_made or progress_made
 
-
-    #return houses, assertions, assertion_used, progress_made
+                    cl_prog_made = riddle.clean_elements()
+                    progress_made = pos_progress_made or progress_made or cl_prog_made
+    
     return riddle, progress_made
 
 
@@ -182,7 +215,7 @@ def main():
     house_number = 5
     riddle = ProblemData(house_number, build_assertions())
 
-    for rounds in range(4):
+    for rounds in range(15):
         progress_made = False  # have any changes (progress) been made this round?
         riddle, progress_made = deduce(riddle)
         if not progress_made:
@@ -191,8 +224,11 @@ def main():
                   + str(len(riddle.assertions_used))) 
             break
 
+
     riddle.house_state()
     riddle.element_state()
+
+
 
 
 if __name__ == '__main__':
